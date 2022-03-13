@@ -11,20 +11,19 @@ import { useCollectionData } from 'react-firebase-hooks/firestore';
 
 firebase.initializeApp({
   // your config
-  apiKey: "AIzaSyBQlJxUQYEYjDMaAJ1u2VToIxDEqlkvcXM",
+  apiKey: "AIzaSyCWZEJsKrBPGRKJ0XSM7rq0f4lQnLEGJzQ",
 
-  authDomain: "chat-app-cf056.firebaseapp.com",
+  authDomain: "e2ee-chat-68065.firebaseapp.com",
 
-  projectId: "chat-app-cf056",
+  projectId: "e2ee-chat-68065",
 
-  storageBucket: "chat-app-cf056.appspot.com",
+  storageBucket: "e2ee-chat-68065.appspot.com",
 
-  messagingSenderId: "657078320568",
+  messagingSenderId: "805804732090",
 
-  appId: "1:657078320568:web:7d46bba5962548a61ca34d",
+  appId: "1:805804732090:web:2e8771fd376f74fb3e5c83",
 
-  measurementId: "G-ZRPXFP7VCE"
-
+  measurementId: "G-Q54G0GWPZ0"
 })
 
 const auth = firebase.auth();
