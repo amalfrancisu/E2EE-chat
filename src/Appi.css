@@ -25,21 +25,43 @@ body {
   box-sizing: border-box;
 }
 
-.App section {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 100vh;
-  background-color: rgb(40, 37, 53);
+
+.container {
+    display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 0px 0px;
+  grid-auto-flow: row;
+  grid-template-areas:
+    "user-list chat chat"
+    "user-list chat chat"
+    "user-list form form";
+}
+
+.user-list {
+    grid-area: user-list;
+    background: black;
+    color: #fff;
+    padding-top: 100px;
+}
+
+.form { grid-area: form; }
+
+.chat {
+    grid-area: chat;
+    height: 100%;
+    height: calc(100vh - 150px);
+    overflow-y: scroll;
+
+}
+
+section {
+    overflow: hidden;
+    height: 100vh;
 }
 
 main {
   padding: 10px;
-  height: 80vh;
-  margin: 10vh 0 10vh;
-  overflow-y: scroll;
-  display: flex;
-  flex-direction: column;
 }
 
 main::-webkit-scrollbar {
@@ -153,36 +175,3 @@ img {
   margin: 2px 5px;
 }
 
-.container {
-  display: grid;
-grid-template-columns: 1fr 1fr 1fr;
-grid-template-rows: 1fr 1fr 1fr;
-gap: 0px 0px;
-grid-auto-flow: row;
-grid-template-areas:
-  "user-list chat chat"
-  "user-list chat chat"
-  "user-list form form";
-}
-
-.user-list {
-  grid-area: user-list;
-  background: black;
-  color: #fff;
-  padding-top: 100px;
-}
-
-.form { grid-area: form; }
-
-.chat {
-  grid-area: chat;
-  height: 100%;
-  height: calc(100vh - 150px);
-  overflow-y: scroll;
-
-}
-
-section {
-  overflow: hidden;
-  height: 100vh;
-}

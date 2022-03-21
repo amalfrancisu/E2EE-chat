@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, collection, query, limit, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getAdditionalUserInfo, getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, limit, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
 const firebaseConfig = {
@@ -25,6 +26,9 @@ const auth = getAuth();
 function App() {
 
   const [user] = useAuthState(auth);
+  const [regUser, setRegUser] = useState(false);  //User registered
+
+  console.log(user);
 
   return (
     <div className="App">
@@ -34,14 +38,15 @@ function App() {
       </header>
 
       <section>
-        {user ? <ChatRoom /> : <SignIn auth={auth} />}
+        {user ? (regUser ? <ChatRoom /> : <SignUp setRegUser={setRegUser} />)
+          : <SignIn auth={auth} setRegUser={setRegUser} />}
       </section>
 
     </div>
   );
 }
 
-function SignIn({ auth }) {
+function SignIn({ auth, setRegUser }) {
 
   const signInWithGoogle = () => {
     const provider = new GoogleAuthProvider();
@@ -52,13 +57,25 @@ function SignIn({ auth }) {
         // const token = credential.accessToken;
         // The signed-in user info.
         // const user = result.user;
-        // ...
-      }).catch((error) => {
-        // Handle Errors here.
-        const errorCode = error.code;
-        const errorMessage = error.message;
 
-        console.log(errorCode, errorMessage);
+
+        // Check for user already signed up
+
+        const docRef = doc(firestore, "users", result.user.uid);
+        getDoc(docRef).then((docSnap) => {
+          if (docSnap.exists()) {
+            console.log(docSnap.data());
+            setRegUser(true);
+          } else {
+            console.log("No user exists");
+            setRegUser(false);
+          }
+        }).catch((error) => {
+          console.log(error.message);
+        });
+
+      }).catch((error) => {
+        console.log(error.message);
       });
   }
 
@@ -68,6 +85,34 @@ function SignIn({ auth }) {
     </>
   )
 
+}
+
+function SignUp({ setRegUser }) {
+
+  const generateKeys = () => {
+    return "dummykey";
+  }
+
+  const regUser = async () => {
+
+    const pubKey = generateKeys();
+
+    await setDoc(doc(firestore, "users", auth.currentUser.uid), {
+
+      displayName: auth.currentUser.displayName,
+      email: auth.currentUser.email,
+      photoURL: auth.currentUser.photoURL,
+      pubKey: pubKey
+    });
+
+    setRegUser(true);
+  }
+
+  return (
+    <>
+      <button className="sign-in" onClick={regUser}>Create Keys and Register User</button>
+    </>
+  )
 }
 
 function SignOut({ auth }) {
@@ -88,7 +133,7 @@ function ChatRoom() {
   console.log('ChatRoom');
   const dummy = useRef();
   const messagesRef = collection(firestore, 'messages');
-  const q = query(messagesRef, orderBy("createdAt"), limit(25));
+  const q = query(messagesRef, orderBy("createdAt"));
 
   const [messages, setMessages] = useState([]);
 
@@ -99,7 +144,7 @@ function ChatRoom() {
         msgs.push({ ...doc.data(), id: doc.id });
       });
       setMessages(msgs);
-      dummy.current.scrollIntoView({ behavior: 'smooth' });
+      // dummy.current.scrollIntoView({ behavior: 'smooth' });
     });
   }, []);
 
@@ -119,11 +164,23 @@ function ChatRoom() {
     });
 
     setFormValue('');
-    dummy.current.scrollIntoView({ behavior: 'smooth' });
+    // dummy.current.scrollIntoView({ behavior: 'smooth' });
   }
 
-  return (<>
-    <main>
+  const users = [
+    { name: 'John Doe', photoURL: 'https://picsum.photos/400/400?1' },
+    { name: 'Jane doe', photoURL: 'https://picsum.photos/400/400?2' },
+  ]
+
+  return (<div className="container">
+    <aside className="user-list">
+      {users.map(user => (
+        <div>
+          <h4>{user.name} </h4>
+        </div>
+      ))}
+    </aside>
+    <main className="chat">
 
       {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
 
@@ -131,16 +188,15 @@ function ChatRoom() {
 
     </main>
 
-    <form onSubmit={sendMessage}>
+    <form onSubmit={sendMessage} className="form">
 
       <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Type your message here" />
 
       <button type="submit" disabled={!formValue}>🕊️</button>
 
     </form>
-  </>)
+  </div>)
 }
-
 
 function ChatMessage(props) {
   const { text, uid, photoURL } = props.message;
