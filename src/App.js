@@ -131,55 +131,129 @@ function SignOut({ auth }) {
 
 function ChatRoom() {
   console.log('ChatRoom');
-  const dummy = useRef();
-  const messagesRef = collection(firestore, 'messages');
-  const q = query(messagesRef, orderBy("createdAt"));
+  const [contacts, setContacts] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
 
-  const [messages, setMessages] = useState([]);
+  const chatroomRef = collection(firestore, 'chatrooms');
+  const chr_q1 = query(chatroomRef, where("uid1", "==", auth.currentUser.uid))
+  const chr_q2 = query(chatroomRef, where("uid2", "==", auth.currentUser.uid))
 
   useEffect(() => {
+
+    // Fetching contactList
+    const chr1_unsubscribe = onSnapshot(chr_q1, (querySnapshot) => {
+
+      const contact_ids = [];
+
+      querySnapshot.forEach((doc) => {
+        console.log(doc.id)
+        contact_ids.push({
+          chat_id: doc.id,
+          id: doc.data().uid2
+        });
+      })
+
+      const chr2_unsubscribe = onSnapshot(chr_q2, (querySnapshot2) => {
+        querySnapshot2.forEach((doc) => {
+          console.log(doc.id)
+          contact_ids.push({
+            chat_id: doc.id,
+            id: doc.data().uid1
+          });
+        });
+
+
+        const contacts_data = []
+        contact_ids.map((cont, index, contact_ids) => {
+          getDoc(doc(firestore, "users", cont.id)).then((docSnap) => {
+            console.log(docSnap.data());
+            contacts_data.push({
+              chat_id: cont.chat_id,
+              contact_id: cont.id,
+              ...docSnap.data()
+            })
+            console.log(contacts_data);
+            setContacts(contacts_data);
+          });
+        });
+      });
+
+    });
+
+  }, []);
+
+
+  return (<div className="container">
+    <aside className="user-list">
+      {contacts.map(cont => (
+        <div id={cont.chat_id}>
+          <button onClick={() => setSelectedChat(cont)}>
+            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
+          </button>
+        </div>
+      ))}
+      {contacts.map(cont => (
+        <div id={cont.chat_id}>
+          <button onClick={() => setSelectedChat(cont)}>
+            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
+          </button>
+        </div>
+      ))}
+      {contacts.map(cont => (
+        <div id={cont.chat_id}>
+          <button onClick={() => setSelectedChat(cont)}>
+            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
+          </button>
+        </div>
+      ))}
+
+    </aside>
+
+    {selectedChat == null ? null : <Chat selectedChat={selectedChat} />}
+
+  </div>)
+}
+
+function Chat({selectedChat}) {
+
+  const dummy = useRef();
+  const [messages, setMessages] = useState([]);
+  const [formValue, setFormValue] = useState('');
+
+  const messagesRef = collection(firestore, selectedChat.chat_id);
+
+  useEffect(() => {
+
+    const q = query(messagesRef, orderBy("createdAt"));
+
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = [];
       querySnapshot.forEach((doc) => {
         msgs.push({ ...doc.data(), id: doc.id });
       });
+      console.log(msgs);
       setMessages(msgs);
       // dummy.current.scrollIntoView({ behavior: 'smooth' });
     });
-  }, []);
 
-
-  const [formValue, setFormValue] = useState('');
+  }, [])
 
   const sendMessage = async (e) => {
     e.preventDefault();
 
-    const { uid, photoURL } = auth.currentUser;
+    const { uid } = auth.currentUser;
 
-    await addDoc(messagesRef, {
+    await addDoc(collection(firestore, selectedChat.chat_id), {
       text: formValue,
       createdAt: serverTimestamp(),
-      uid,
-      photoURL
+      uid
     });
 
     setFormValue('');
     // dummy.current.scrollIntoView({ behavior: 'smooth' });
   }
 
-  const users = [
-    { name: 'John Doe', photoURL: 'https://picsum.photos/400/400?1' },
-    { name: 'Jane doe', photoURL: 'https://picsum.photos/400/400?2' },
-  ]
-
-  return (<div className="container">
-    <aside className="user-list">
-      {users.map(user => (
-        <div>
-          <h4>{user.name} </h4>
-        </div>
-      ))}
-    </aside>
+  return (<>
     <main className="chat">
 
       {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
@@ -195,7 +269,7 @@ function ChatRoom() {
       <button type="submit" disabled={!formValue}>🕊️</button>
 
     </form>
-  </div>)
+  </>);
 }
 
 function ChatMessage(props) {
