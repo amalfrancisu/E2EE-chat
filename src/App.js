@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import './App.css';
+import './App_.css';
 
 import { initializeApp } from 'firebase/app';
-import { getAdditionalUserInfo, getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, collection, query, limit, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
-import { doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
 const nacl = require('tweetnacl');
@@ -185,11 +185,13 @@ function ChatRoom({ secretKey }) {
   const [contacts, setContacts] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
 
-  const chatroomRef = collection(firestore, 'chatrooms');
-  const chr_q1 = query(chatroomRef, where("uid1", "==", auth.currentUser.uid))
-  const chr_q2 = query(chatroomRef, where("uid2", "==", auth.currentUser.uid))
-
   useEffect(() => {
+
+    const chatroomRef = collection(firestore, 'chatrooms');
+    const chr_q1 = query(chatroomRef, where("uid1", "==", auth.currentUser.uid))
+    const chr_q2 = query(chatroomRef, where("uid2", "==", auth.currentUser.uid))
+
+    let unsub2;
 
     // Fetching contactList
     const chr1_unsubscribe = onSnapshot(chr_q1, (querySnapshot) => {
@@ -229,7 +231,14 @@ function ChatRoom({ secretKey }) {
         });
       });
 
+      unsub2 = chr2_unsubscribe;
+
     });
+
+    return () => {
+      chr1_unsubscribe();
+      unsub2();
+    }
 
   }, []);
 
@@ -238,36 +247,22 @@ function ChatRoom({ secretKey }) {
     <aside className="user-list">
       {contacts.map(cont => (
         <div id={cont.chat_id}>
-          <button onClick={() => setSelectedChat(cont)}>
-            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
-          </button>
-        </div>
-      ))}
-      {contacts.map(cont => (
-        <div id={cont.chat_id}>
-          <button onClick={() => setSelectedChat(cont)}>
-            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
-          </button>
-        </div>
-      ))}
-      {contacts.map(cont => (
-        <div id={cont.chat_id}>
-          <button onClick={() => setSelectedChat(cont)}>
-            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h1>{cont.displayName} </h1>
+          <button className='contact' onClick={() => { setSelectedChat(cont) }}>
+            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h4>{cont.displayName} </h4>
           </button>
         </div>
       ))}
 
     </aside>
 
-    {selectedChat == null ? null : <Chat selectedChat={selectedChat} secretKey={secretKey} />}
+    {selectedChat == null ? null : <Chat key={selectedChat.chat_id} selectedChat={selectedChat} secretKey={secretKey} />}
 
   </div>)
 }
 
 function Chat({ selectedChat, secretKey }) {
 
-  console.log(selectedChat);
+  console.log("CHat", selectedChat);
 
   const dummy = useRef();
   const [messages, setMessages] = useState([]);
@@ -279,6 +274,8 @@ function Chat({ selectedChat, secretKey }) {
 
     const q = query(messagesRef, orderBy("createdAt"));
 
+    console.log('Query for messages from ', selectedChat.chat_id);
+
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = [];
       querySnapshot.forEach((doc) => {
@@ -287,6 +284,11 @@ function Chat({ selectedChat, secretKey }) {
       console.log(msgs);
       setMessages(msgs);
       // dummy.current.scrollIntoView({ behavior: 'smooth' });
+
+      return () => {
+        console.log('Unsubscribing messages from ', selectedChat.chat_id);
+        unsubscribe();
+      }
     });
 
   }, []);
@@ -331,45 +333,46 @@ function Chat({ selectedChat, secretKey }) {
 
   return (<>
     <main className="chat">
-      <h1>{selectedChat.displayName}</h1>
-      <h1>{selectedChat.displayName}</h1>
-      <h1>{selectedChat.displayName}</h1>
-      <h1 style={{color: "white"}}>{selectedChat.displayName}</h1>
+      <h1 className='chathead' style={{ color: "white" }}>{selectedChat.displayName}</h1>
 
-      {messages && messages.map(msg =>
-        <ChatMessage key={msg.id} message={msg} keys={{ pvt: secretKey, pub: selectedChat.pubKey }} />)}
+      <div className='messages-section'>
+        {messages && messages.map(msg =>
+          <ChatMessage key={msg.id} message={msg} keys={{ pvt: secretKey, pub: selectedChat.pubKey }} />)}
 
-      <span ref={dummy}></span>
+        <span ref={dummy}></span>
 
+      </div>
+
+      <form onSubmit={sendMessage} className="form">
+
+        <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Type your message here" />
+
+        <button type="submit" disabled={!formValue}>Send</button>
+
+      </form>
     </main>
-
-    <form onSubmit={sendMessage} className="form">
-
-      <input value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="Type your message here" />
-
-      <button type="submit" disabled={!formValue}>🕊️</button>
-
-    </form>
   </>);
 }
 
 function ChatMessage(props) {
   const { text, uid, nonce } = props.message;
   const { keys } = props;
-  console.log(keys);
+  console.log(keys, text);
 
-  const decryptedmsg = util.encodeUTF8(nacl.box.open(
+  const decryptedMsgUint8 = nacl.box.open(
     util.decodeBase64(text),
     util.decodeBase64(nonce),
     util.decodeBase64(keys.pub),
     keys.pvt.uint8
-  ));
+  );
+  console.log(decryptedMsgUint8);
+  const decryptedMsg = util.encodeUTF8(decryptedMsgUint8);
 
   const messageClass = uid === auth.currentUser.uid ? 'sent' : 'received';
 
   return (<>
     <div className={`message ${messageClass}`}>
-      <p>{decryptedmsg}</p>
+      <p>{decryptedMsg}</p>
     </div>
   </>)
 }
