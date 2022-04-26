@@ -51,7 +51,8 @@ function App() {
 }
 
 function LoadKey({ setSecretKey }) {
-  const [key, setKey] = useState(null)
+  const [userPwd, setUserPwd] = useState("");
+  const [keyObj, setKeyObj] = useState(null)
 
   const updateKey = (e) => {
 
@@ -60,19 +61,33 @@ function LoadKey({ setSecretKey }) {
     reader.readAsText(file)
 
     reader.addEventListener("load", () => {
-      const keyObj = JSON.parse(reader.result);
-      const keyArr = util.decodeBase64(keyObj.key);
-      setKey({ string: keyObj.key, uint8: keyArr })
+      const keyData = JSON.parse(reader.result);
+      setKeyObj({ ...keyData })
     });
-
   }
 
   const useKey = () => {
-    setSecretKey({ ...key });
+    const nonce = util.decodeBase64(keyObj.nonce);
+    const enckeyArr = util.decodeBase64(keyObj.key);
+
+    const keyArr = nacl.secretbox.open(enckeyArr, nonce, util.decodeUTF8(userPwd.padStart(32)));
+    console.log(keyArr);
+
+    if (keyArr == null) {
+      alert("Invalid Password");
+      return;
+    }
+
+    setSecretKey({ string: util.encodeBase64(keyArr), uint8: keyArr });
   }
   return (
     <div className='fileUpload' style={{ backgroundColor: "white" }}>
       <h1>Select Key file</h1><input type="file" name="keyf" accept='.json' onChange={updateKey} />
+      <br /> <br />
+
+      <input type="password" name="userpwd" id="userpwd_inp" placeholder='Password'
+        value={userPwd} onChange={e => setUserPwd(e.target.value)} />
+      <br /> <br />
       <button onClick={useKey}>Use Key</button>
     </div>
   )
@@ -121,6 +136,8 @@ function SignIn({ auth, setRegUser }) {
 
 function SignUp({ setRegUser, setSecretKey }) {
 
+  const [userPwd, setUserPwd] = useState("");
+
   const generateKeys = () => {
     const keypair = nacl.box.keyPair()
 
@@ -132,18 +149,24 @@ function SignUp({ setRegUser, setSecretKey }) {
 
   const regUser = async () => {
 
+    if (userPwd === "") {
+      alert("Enter Password");
+      return;
+    }
+
     const [pvtKey, pubKey] = generateKeys();
 
-    await setDoc(doc(firestore, "users", auth.currentUser.uid), {
+    const nonce = nacl.randomBytes(nacl.box.nonceLength);
+    const encPvtKey = util.encodeBase64(
+      nacl.secretbox(
+        util.decodeBase64(pvtKey),
+        nonce,
+        util.decodeUTF8(userPwd.padStart(32))
+      )
+    )
 
-      displayName: auth.currentUser.displayName,
-      email: auth.currentUser.email,
-      photoURL: auth.currentUser.photoURL,
-      pubKey: pubKey
-    });
-
-    const key = { key: pvtKey };
-    const blob = new Blob([JSON.stringify(key)], { type: 'application/json' });
+    const keyF = { key: encPvtKey, nonce: util.encodeBase64(nonce) };
+    const blob = new Blob([JSON.stringify(keyF)], { type: 'application/json' });
 
     const a = document.createElement('a');
     a.download = auth.currentUser.email + '_keyFile.json';
@@ -154,13 +177,27 @@ function SignUp({ setRegUser, setSecretKey }) {
     });
     a.click();
 
+    await setDoc(doc(firestore, "users", auth.currentUser.uid), {
+
+      displayName: auth.currentUser.displayName,
+      email: auth.currentUser.email,
+      photoURL: auth.currentUser.photoURL,
+      pubKey: pubKey
+    });
+
     setRegUser(true);
   }
 
   return (
-    <>
+
+    <div>
+      <br />
+      <label for="userpwd">Create Password for Private Key</label>
+      <input type="password" name="userpwd" id="userpwd_inp" placeholder='Type Password'
+        value={userPwd} onChange={e => setUserPwd(e.target.value)} />
+      <br /> <br />
       <button className="sign-in" onClick={regUser}>Create Keys and Register User</button>
-    </>
+    </div>
   )
 }
 

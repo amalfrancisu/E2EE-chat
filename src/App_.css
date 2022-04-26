@@ -130,3 +130,8 @@ p {
     background: #e5e5ea;
     color: black;
 }
+
+label {
+    color: white;
+    padding: 5px;
+}
