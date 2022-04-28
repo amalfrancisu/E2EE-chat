@@ -4,7 +4,7 @@ import './App_.css';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { useAuthState } from 'react-firebase-hooks/auth';
 
 const nacl = require('tweetnacl');
@@ -282,6 +282,7 @@ function ChatRoom({ secretKey }) {
 
   return (<div className="container">
     <aside className="user-list">
+      <StartNewChat contacts={contacts}/>
       {contacts.map(cont => (
         <div id={cont.chat_id}>
           <button className='contact' onClick={() => { setSelectedChat(cont) }}>
@@ -295,6 +296,67 @@ function ChatRoom({ secretKey }) {
     {selectedChat == null ? null : <Chat key={selectedChat.chat_id} selectedChat={selectedChat} secretKey={secretKey} />}
 
   </div>)
+}
+
+function StartNewChat({ contacts}) {
+  const [searchId, setSearchId] = useState("");
+
+  const tryNewChat = async () => {
+
+    if (searchId === auth.currentUser.email) {
+      alert("You cannot chat with yourself");
+      return;
+    }
+
+    const usersRef = collection(firestore, 'users');
+    const usr_qry = query(usersRef, where("email", "==", searchId));
+
+    const qSnap = await getDocs(usr_qry);
+    if (qSnap.empty) {
+      alert("No user with given email id exists!")
+      return;
+    }
+
+    let newContact;
+    qSnap.forEach((doc)=> {
+      newContact = {
+        ...doc.data(),
+        id: doc.id
+      }
+    });
+
+    console.log(newContact);
+
+    
+
+    const chatroom_ids = [auth.currentUser.uid, newContact.id].sort()
+    const newChat_id = chatroom_ids[0]+"-"+chatroom_ids[1];
+    console.log(chatroom_ids);
+    
+    const chatRef = doc(firestore, "chatrooms", newChat_id);
+
+    const chatroomSnap = await getDoc(chatRef);
+
+    if(chatroomSnap.exists()) {
+      alert("Chat already exists!")
+      return;
+    }
+
+    const addRes = await setDoc(doc(firestore, "chatrooms", newChat_id), {
+      uid1: chatroom_ids[0],
+      uid2: chatroom_ids[1]
+    });
+
+    console.log(addRes);
+  };
+  
+  return (
+    <div>
+      <input type="text" name="searchid" id="searchid" placeholder="Type new email id" size="15"
+        value={searchId} onChange={e => setSearchId(e.target.value)} />
+      <button className='sign-in' disabled={searchId === ""} onClick={tryNewChat}>Start New Chat</button>
+    </div>
+  );
 }
 
 function Chat({ selectedChat, secretKey }) {
@@ -403,7 +465,7 @@ function ChatMessage(props) {
     keys.pvt.uint8
   );
   console.log(decryptedMsgUint8);
-  const decryptedMsg = util.encodeUTF8(decryptedMsgUint8);
+  const decryptedMsg = decryptedMsgUint8 === null ? "Decryption Failed" : util.encodeUTF8(decryptedMsgUint8);
 
   const messageClass = uid === auth.currentUser.uid ? 'sent' : 'received';
 
