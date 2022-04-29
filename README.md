@@ -6,7 +6,6 @@
 	- npm
 
 # Setup project dependencies
-	- cd into code folder
 	- run command
 		$ npm i
 
