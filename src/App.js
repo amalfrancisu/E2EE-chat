@@ -21,7 +21,7 @@ const firebaseConfig = {
   measurementId: "G-Q54G0GWPZ0"
 };
 
-const app = initializeApp(firebaseConfig);
+initializeApp(firebaseConfig);
 const firestore = getFirestore();
 const auth = getAuth();
 
@@ -100,7 +100,7 @@ function SignIn({ auth, setRegUser }) {
     signInWithPopup(auth, provider)
       .then((result) => {
         // This gives you a Google Access Token. You can use it to access the Google API.
-        const credential = GoogleAuthProvider.credentialFromResult(result);
+        console.log(GoogleAuthProvider.credentialFromResult(result));
         // const token = credential.accessToken;
         // The signed-in user info.
         // const user = result.user;
@@ -286,7 +286,7 @@ function ChatRoom({ secretKey }) {
       {contacts.map(cont => (
         <div id={cont.chat_id}>
           <button className='contact' onClick={() => { setSelectedChat(cont) }}>
-            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} /><h4>{cont.displayName} </h4>
+            <img src={cont.photoURL || 'https://api.adorable.io/avatars/23/abott@adorable.png'} alt='IMG' /><h4>{cont.displayName} </h4>
           </button>
         </div>
       ))}
